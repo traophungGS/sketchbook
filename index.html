@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Most Dangerous Sketchbook - Flow or Fade</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f8fafc',
+                            900: '#0f172a',
+                        },
+                        danger: {
+                            500: '#ef4444',
+                            600: '#dc2626',
+                            900: '#450a0a',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* Custom UI Styles & Touch Handling */
+        body {
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        /* Theme Palettes */
+        .theme-dark { background-color: #090d16; color: #f8fafc; }
+        .theme-light { background-color: #f1f5f9; color: #0f172a; }
+        .theme-charcoal { background-color: #1c1917; color: #e7e5e4; }
+        .theme-sepia { background-color: #2d241e; color: #f5ebe0; }
+
+        /* Canvas Themes */
+        .canvas-bg-dark { background-color: #0f172a; }
+        .canvas-bg-light { background-color: #ffffff; }
+        .canvas-bg-charcoal { background-color: #262626; }
+        .canvas-bg-sepia { background-color: #f4ebd9; }
+
+        /* Vignettes for Danger */
+        .vignette-danger {
+            box-shadow: inset 0 0 100px rgba(239, 68, 68, 0.7), inset 0 0 40px rgba(239, 68, 68, 0.8);
+        }
+        .vignette-critical {
+            box-shadow: inset 0 0 180px rgba(220, 38, 38, 0.95), inset 0 0 80px rgba(185, 28, 28, 1);
+        }
+
+        /* Auto Dim HUD Animation */
+        .hud-transition {
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .hud-dimmed {
+            opacity: 0.15 !important;
+            pointer-events: none;
+        }
+        .hud-dimmed:hover {
+            opacity: 1 !important;
+            pointer-events: auto;
+        }
+
+        /* Color Picker Swatch Ring */
+        .swatch-active {
+            ring-2: 2px;
+            ring-offset: 2px;
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body id="appBody" class="theme-dark font-sans antialiased h-full w-full relative flex flex-col justify-between overflow-hidden">
+
+    <!-- Danger Alert Overlay -->
+    <div id="dangerOverlay" class="fixed inset-0 pointer-events-none z-30 transition-all duration-300 opacity-0"></div>
+
+    <!-- MAIN APP WRAPPER -->
+    <div class="relative w-full h-full flex flex-col justify-between overflow-hidden">
+
+        <!-- HEADER / NAVIGATION HUD -->
+        <header id="topHud" class="hud-transition w-full px-4 sm:px-6 py-3 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md z-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="goToSetup()">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-red-600 to-amber-600 p-0.5 shadow-lg shadow-red-950/50">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center text-red-500 font-extrabold text-lg">
+                        <i class="fa-solid fa-pen-nib"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm sm:text-base tracking-tight text-slate-100 flex items-center gap-2">
+                        DANGEROUS SKETCHBOOK
+                        <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-red-950/80 text-red-400 border border-red-900/50">GESTURE MODE</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Global Controls -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button id="soundToggleBtn" onclick="toggleSound()" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-xs text-slate-300 transition flex items-center gap-2">
+                    <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                    <span id="soundText" class="hidden sm:inline">Audio: ON</span>
+                </button>
+                <button id="themeToggleBtn" onclick="cycleTheme()" class="px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-xs text-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-palette text-amber-400"></i>
+                    <span id="themeText" class="hidden sm:inline">Theme: Dark</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- VIEW 1: SETUP SCREEN -->
+        <main id="setupScreen" class="flex-1 flex items-center justify-center p-4 sm:p-6 z-20 overflow-y-auto">
+            <div class="max-w-2xl w-full bg-slate-900/80 border border-slate-800/90 rounded-2xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative my-auto">
+                
+                <!-- Glowing Accents -->
+                <div class="absolute -top-10 -left-10 w-40 h-40 bg-red-600/15 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-amber-600/15 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-white mb-2">
+                        Draw Non-Stop.<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-amber-500">Or Watch Your Sketch Vanish.</span>
+                    </h2>
+                    <p class="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-lg mx-auto">
+                        Designed for figure drawing, gesture practice, and overcoming artistic perfectionism. Stop stroke movement for longer than the grace period and your canvas completely fades to dust.
+                    </p>
+                </div>
+
+                <!-- Setup Form Grid -->
+                <div class="space-y-5 text-left">
+                    
+                    <!-- 1. Target Duration -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                            Session Duration
+                        </label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button type="button" onclick="selectDuration(1)" class="duration-btn px-3 py-2.5 rounded-xl border border-red-500 bg-red-600/20 text-white font-bold text-xs sm:text-sm transition">1 Min</button>
+                            <button type="button" onclick="selectDuration(3)" class="duration-btn px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs sm:text-sm transition">3 Mins</button>
+                            <button type="button" onclick="selectDuration(5)" class="duration-btn px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs sm:text-sm transition">5 Mins</button>
+                            <button type="button" onclick="selectDuration(10)" class="duration-btn px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs sm:text-sm transition">10 Mins</button>
+                        </div>
+                    </div>
+
+                    <!-- 2. Idle Grace Threshold -->
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                            Max Inactivity Tolerance (Grace Period)
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button" onclick="selectGracePeriod(3)" class="grace-btn px-3 py-2 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs transition">
+                                ⚡ Hardcore (3.0s)
+                            </button>
+                            <button type="button" onclick="selectGracePeriod(4)" class="grace-btn px-3 py-2 rounded-xl border border-red-500 bg-red-600/20 text-white font-bold text-xs transition">
+                                🔥 Standard (4.0s)
+                            </button>
+                            <button type="button" onclick="selectGracePeriod(5)" class="grace-btn px-3 py-2 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs transition">
+                                🛡️ Lenient (5.0s)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. Canvas Preset & Ratio -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Canvas Paper Tone</label>
+                            <select id="canvasToneSelect" onchange="updateCanvasToneSetting()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-red-500">
+                                <option value="dark" selected>Midnight Dark (#0F172A)</option>
+                                <option value="light">Pure White (#FFFFFF)</option>
+                                <option value="charcoal">Studio Charcoal (#262626)</option>
+                                <option value="sepia">Warm Sepia Tone (#F4EBD9)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Auto-Dim UI While Drawing</label>
+                            <label class="flex items-center justify-between cursor-pointer p-2 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-950 transition">
+                                <span class="text-xs text-slate-300 font-medium">Dim HUD during stroke</span>
+                                <input type="checkbox" id="autodimToggle" checked class="w-4 h-4 rounded accent-red-600 bg-slate-900 border-slate-700">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Start Button -->
+                    <button onclick="startDrawingSession()" class="w-full mt-2 py-4 px-6 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-base sm:text-lg shadow-xl shadow-red-950/60 hover:shadow-red-900/80 transition transform active:scale-[0.99] flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-fire"></i>
+                        Start Dangerous Sketch
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 2: ACTIVE DRAWING SCREEN -->
+        <main id="drawingScreen" class="hidden flex-1 relative w-full h-full overflow-hidden flex flex-col justify-between">
+            
+            <!-- TOP FLOATING SESSION HUD BAR -->
+            <div id="sessionHudTop" class="hud-transition absolute top-4 left-4 right-4 z-20 pointer-events-none flex items-center justify-between gap-4">
+                
+                <!-- Time Remaining Card -->
+                <div class="pointer-events-auto bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-red-400">
+                        <i class="fa-solid fa-stopwatch text-sm"></i>
+                    </div>
+                    <div>
+                        <div class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Session Time</div>
+                        <div id="sessionTimerText" class="font-mono text-base font-extrabold text-slate-100">01:00</div>
+                    </div>
+                </div>
+
+                <!-- Center Gauge: Danger / Stroke Timer -->
+                <div class="pointer-events-auto flex-1 max-w-xs bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl">
+                    <div class="flex justify-between items-center mb-1 text-[10px] font-mono">
+                        <span id="dangerGaugeLabel" class="text-slate-400 font-bold uppercase flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Drawing Active
+                        </span>
+                        <span id="dangerCountdownText" class="text-slate-200 font-bold">4.0s</span>
+                    </div>
+                    <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800 p-0.5">
+                        <div id="dangerProgressBar" class="bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 h-full rounded-full transition-all duration-75" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <!-- Session Stats & Abort -->
+                <div class="pointer-events-auto bg-slate-950/80 border border-slate-800/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl flex items-center gap-4">
+                    <div class="hidden sm:block">
+                        <div class="text-[9px] uppercase font-bold text-slate-500 tracking-wider">Strokes</div>
+                        <div id="strokeCounterText" class="font-mono text-base font-bold text-slate-200 text-center">0</div>
+                    </div>
+                    <button onclick="confirmAbortSession()" class="px-3 py-1.5 rounded-xl border border-red-900/60 bg-red-950/40 hover:bg-red-900/60 text-red-300 text-xs font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-xmark"></i> Abort
+                    </button>
+                </div>
+            </div>
+
+            <!-- CANVAS DRAWING AREA -->
+            <div id="canvasContainer" class="absolute inset-0 w-full h-full flex items-center justify-center z-10 cursor-crosshair">
+                <canvas id="sketchCanvas" class="block w-full h-full touch-none"></canvas>
+            </div>
+
+            <!-- BOTTOM FLOATING TOOLBAR HUD -->
+            <div id="sessionHudBottom" class="hud-transition absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 pointer-events-auto max-w-2xl w-[92%] sm:w-auto bg-slate-950/90 border border-slate-800/90 backdrop-blur-xl px-4 py-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between sm:justify-center gap-3 sm:gap-6">
+                
+                <!-- Tools Selection -->
+                <div class="flex items-center gap-1 border-r border-slate-800/80 pr-3 sm:pr-4">
+                    <button onclick="setTool('pen')" id="toolPen" class="tool-btn p-2.5 rounded-xl bg-slate-800 text-amber-400 border border-slate-700 transition relative group" title="Ink Pen">
+                        <i class="fa-solid fa-pen-nib text-sm"></i>
+                    </button>
+                    <button onclick="setTool('charcoal')" id="toolCharcoal" class="tool-btn p-2.5 rounded-xl hover:bg-slate-900 text-slate-400 transition relative group" title="Charcoal">
+                        <i class="fa-solid fa-paint-brush text-sm"></i>
+                    </button>
+                    <button onclick="setTool('marker')" id="toolMarker" class="tool-btn p-2.5 rounded-xl hover:bg-slate-900 text-slate-400 transition relative group" title="Highlighter Marker">
+                        <i class="fa-solid fa-highlighter text-sm"></i>
+                    </button>
+                    <button onclick="setTool('eraser')" id="toolEraser" class="tool-btn p-2.5 rounded-xl hover:bg-slate-900 text-slate-400 transition relative group" title="Eraser">
+                        <i class="fa-solid fa-eraser text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Brush Size Slider -->
+                <div class="flex items-center gap-2 border-r border-slate-800/80 pr-3 sm:pr-4">
+                    <i class="fa-solid fa-circle text-[8px] text-slate-500"></i>
+                    <input type="range" id="brushSizeInput" min="1" max="50" value="4" oninput="updateBrushSettings()" class="w-16 sm:w-24 accent-red-500 cursor-pointer">
+                    <i class="fa-solid fa-circle text-base text-slate-500"></i>
+                    <span id="brushSizeDisplay" class="font-mono text-xs text-slate-300 w-6 text-right">4px</span>
+                </div>
+
+                <!-- Opacity Slider -->
+                <div class="hidden md:flex items-center gap-2 border-r border-slate-800/80 pr-4">
+                    <i class="fa-solid fa-circle-half-stroke text-xs text-slate-500"></i>
+                    <input type="range" id="brushOpacityInput" min="10" max="100" value="100" oninput="updateBrushSettings()" class="w-16 accent-red-500 cursor-pointer">
+                    <span id="brushOpacityDisplay" class="font-mono text-xs text-slate-300 w-8 text-right">100%</span>
+                </div>
+
+                <!-- Quick Swatches & Custom Picker -->
+                <div class="flex items-center gap-2">
+                    <div id="swatchContainer" class="flex items-center gap-1.5">
+                        <!-- Swatches rendered dynamically -->
+                    </div>
+                    <!-- Custom Color Picker -->
+                    <input type="color" id="customColorPicker" value="#f8fafc" onchange="selectCustomColor(this.value)" class="w-7 h-7 rounded-lg bg-transparent border-0 cursor-pointer p-0 overflow-hidden">
+                </div>
+            </div>
+        </main>
+
+        <!-- VIEW 3: FAILURE SCREEN -->
+        <main id="failureScreen" class="hidden flex-1 flex items-center justify-center p-4 sm:p-6 z-20">
+            <div class="max-w-md w-full bg-slate-900/90 border border-red-900/60 rounded-2xl p-6 sm:p-8 text-center shadow-2xl backdrop-blur-xl animate-shake">
+                <div class="w-16 h-16 rounded-2xl bg-red-950 border border-red-800 text-red-500 flex items-center justify-center mx-auto mb-4 text-3xl shadow-lg shadow-red-950">
+                    <i class="fa-solid fa-skull"></i>
+                </div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Canvas Dissolved!</h2>
+                <p class="text-slate-400 text-xs sm:text-sm mb-6">
+                    Perfectionism was your downfall. You paused drawing for too long, and your artwork turned to dust.
+                </p>
+
+                <!-- Failure Summary Box -->
+                <div class="grid grid-cols-2 gap-3 bg-slate-950 border border-slate-800 rounded-xl p-4 mb-6">
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-slate-500">Strokes Drawn</div>
+                        <div id="failedStrokesCount" class="text-xl sm:text-2xl font-mono font-bold text-red-400">0</div>
+                    </div>
+                    <div>
+                        <div class="text-[10px] uppercase font-bold text-slate-500">Time Survived</div>
+                        <div id="failedTimeSurvived" class="text-xl sm:text-2xl font-mono font-bold text-slate-200">00:00</div>
+                    </div>
+                </div>
+
+                <button onclick="restartSession()" class="w-full py-3.5 px-6 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm sm:text-base transition shadow-lg shadow-red-950 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i> Try Again
+                </button>
+            </div>
+        </main>
+
+        <!-- VIEW 4: VICTORY SCREEN -->
+        <main id="victoryScreen" class="hidden flex-1 flex flex-col max-w-4xl w-full mx-auto p-4 sm:p-6 z-20 overflow-y-auto">
+            
+            <!-- Victory Header Banner -->
+            <div class="bg-gradient-to-r from-emerald-950/90 via-slate-900 to-emerald-950/90 border border-emerald-800/60 rounded-2xl p-5 mb-5 text-center sm:text-left sm:flex sm:items-center sm:justify-between shadow-xl">
+                <div>
+                    <span class="px-3 py-1 rounded-full bg-emerald-900/60 border border-emerald-700/50 text-emerald-400 text-[10px] font-mono font-semibold uppercase tracking-wider">
+                        <i class="fa-solid fa-trophy mr-1"></i> Flow State Mastered
+                    </span>
+                    <h2 class="text-2xl sm:text-3xl font-extrabold text-white mt-1">Artwork Saved From Destruction!</h2>
+                    <p class="text-slate-400 text-xs sm:text-sm">You kept moving and completed your gesture session without hesitating.</p>
+                </div>
+
+                <!-- Export Action Buttons -->
+                <div class="mt-4 sm:mt-0 flex flex-wrap gap-2 justify-center">
+                    <button onclick="copyArtworkToClipboard()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-copy"></i> Copy
+                    </button>
+                    <button onclick="downloadArtwork()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-lg shadow-emerald-950 flex items-center gap-1.5">
+                        <i class="fa-solid fa-download"></i> Download PNG
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Header Grid -->
+            <div class="grid grid-cols-3 gap-3 mb-5">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 text-center">
+                    <div class="text-[10px] uppercase font-bold text-slate-500">Total Strokes</div>
+                    <div id="victoryStrokes" class="text-xl sm:text-2xl font-mono font-extrabold text-emerald-400">0</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 text-center">
+                    <div class="text-[10px] uppercase font-bold text-slate-500">Avg Stroke Speed</div>
+                    <div id="victorySpeed" class="text-xl sm:text-2xl font-mono font-extrabold text-slate-100">0 px/s</div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 text-center">
+                    <div class="text-[10px] uppercase font-bold text-slate-500">Duration</div>
+                    <div id="victoryDuration" class="text-xl sm:text-2xl font-mono font-extrabold text-slate-100">1m</div>
+                </div>
+            </div>
+
+            <!-- Saved Artwork Preview Container -->
+            <div class="flex-1 bg-slate-950 border border-slate-800 rounded-2xl p-2 sm:p-4 flex items-center justify-center min-h-[300px] max-h-[50vh] overflow-hidden">
+                <img id="victoryCanvasPreview" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-slate-800" alt="Victory Sketch Preview">
+            </div>
+
+            <!-- Bottom Navigation -->
+            <div class="mt-4 flex justify-between items-center">
+                <button onclick="goToSetup()" class="px-4 py-2 rounded-xl border border-slate-800 hover:bg-slate-900 text-slate-400 hover:text-white text-xs font-semibold transition">
+                    New Sketch
+                </button>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Notification / Toast Message -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-xl font-medium text-xs sm:text-sm transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center gap-2">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toastMessage">Artwork copied to clipboard!</span>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* SESSION & ENGINE CONFIGURATION */
+        let targetDurationMinutes = 1;
+        let gracePeriodSeconds = 4.0;
+        let sessionTimeRemaining = 60;
+        let totalSessionSeconds = 60;
+        let inactivityTimeSeconds = 0;
+
+        let sessionTimerInterval = null;
+        let dangerLoopInterval = null;
+        let isSessionActive = false;
+        let autoDimHUD = true;
+
+        let soundEnabled = true;
+        let currentTheme = 'dark'; // dark, light, charcoal, sepia
+        let canvasTone = 'dark';
+
+        /* CANVAS & DRAWING STATE */
+        let canvas = null;
+        let ctx = null;
+        let isDrawing = false;
+        let lastPointerPosition = { x: 0, y: 0 };
+        let lastStrokeTimestamp = Date.now();
+        
+        let strokeCount = 0;
+        let totalDistanceDrawn = 0;
+
+        // Current Tool Config
+        let currentTool = 'pen'; // 'pen', 'charcoal', 'marker', 'eraser'
+        let strokeColor = '#f8fafc';
+        let strokeSize = 4;
+        let strokeOpacity = 1.0;
+
+        // Color Swatches
+        const defaultSwatches = [
+            '#f8fafc', // White
+            '#ef4444', // Red
+            '#f59e0b', // Amber
+            '#10b981', // Emerald
+            '#3b82f6', // Blue
+            '#a855f7', // Purple
+            '#0f172a', // Deep Dark
+        ];
+
+        /* AUDIO SYNTHESIZER (Web Audio API) */
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playHeartbeatSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.15);
+
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {}
+        }
+
+        function playEraseSound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const bufferSize = audioCtx.sampleRate * 0.4;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+                filter.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.4);
+
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                noise.start();
+            } catch (e) {}
+        }
+
+        function playVictorySound() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+                notes.forEach((freq, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.12);
+
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime + idx * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.12 + 0.5);
+
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.start(audioCtx.currentTime + idx * 0.12);
+                    osc.stop(audioCtx.currentTime + idx * 0.12 + 0.5);
+                });
+            } catch (e) {}
+        }
+
+        /* INITIALIZATION & CANVAS RESIZING */
+        window.onload = function() {
+            canvas = document.getElementById('sketchCanvas');
+            ctx = canvas.getContext('2d', { willReadFrequently: true });
+            
+            renderSwatches();
+            setupCanvasSize();
+            setupPointerEvents();
+            
+            window.addEventListener('resize', setupCanvasSize);
+        };
+
+        function setupCanvasSize() {
+            if (!canvas) return;
+            const container = document.getElementById('canvasContainer');
+            
+            // Retain drawn content on resize if active
+            let tempImageData = null;
+            if (canvas.width > 0 && canvas.height > 0 && isSessionActive) {
+                tempImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            fillCanvasBackground();
+
+            if (tempImageData) {
+                ctx.putImageData(tempImageData, 0, 0);
+            }
+        }
+
+        function fillCanvasBackground() {
+            if (!ctx) return;
+            let bgColor = '#0f172a';
+            if (canvasTone === 'light') bgColor = '#ffffff';
+            if (canvasTone === 'charcoal') bgColor = '#262626';
+            if (canvasTone === 'sepia') bgColor = '#f4ebd9';
+
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        /* CANVAS DRAWING ENGINE & SMOOTHING */
+        function setupPointerEvents() {
+            canvas.addEventListener('pointerdown', handlePointerDown);
+            canvas.addEventListener('pointermove', handlePointerMove);
+            canvas.addEventListener('pointerup', handlePointerUp);
+            canvas.addEventListener('pointercancel', handlePointerUp);
+            canvas.addEventListener('pointerleave', handlePointerUp);
+        }
+
+        function handlePointerDown(e) {
+            if (!isSessionActive) return;
+            isDrawing = true;
+            strokeCount++;
+            document.getElementById('strokeCounterText').innerText = strokeCount;
+
+            const pos = getPointerPos(e);
+            lastPointerPosition = pos;
+            lastStrokeTimestamp = Date.now();
+
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+
+            // Auto-Dim HUD during stroke
+            if (autoDimHUD) {
+                document.getElementById('sessionHudTop').classList.add('hud-dimmed');
+                document.getElementById('sessionHudBottom').classList.add('hud-dimmed');
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!isSessionActive || !isDrawing) return;
+
+            const currentPos = getPointerPos(e);
+            lastStrokeTimestamp = Date.now();
+
+            // Calculate pressure if supported
+            let pressure = e.pressure !== undefined && e.pressure > 0 ? e.pressure : 0.5;
+            let effectiveSize = strokeSize * (0.4 + pressure * 1.2);
+
+            // Calculate stroke distance for speed stats
+            const dist = Math.hypot(currentPos.x - lastPointerPosition.x, currentPos.y - lastPointerPosition.y);
+            totalDistanceDrawn += dist;
+
+            ctx.lineWidth = currentTool === 'marker' ? strokeSize * 2 : effectiveSize;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Configure Styles by Tool
+            if (currentTool === 'eraser') {
+                let bgColor = '#0f172a';
+                if (canvasTone === 'light') bgColor = '#ffffff';
+                if (canvasTone === 'charcoal') bgColor = '#262626';
+                if (canvasTone === 'sepia') bgColor = '#f4ebd9';
+                
+                ctx.strokeStyle = bgColor;
+                ctx.globalAlpha = 1.0;
+            } else if (currentTool === 'charcoal') {
+                ctx.strokeStyle = strokeColor;
+                ctx.globalAlpha = strokeOpacity * (0.3 + Math.random() * 0.4); // Textured feel
+            } else if (currentTool === 'marker') {
+                ctx.strokeStyle = strokeColor;
+                ctx.globalAlpha = strokeOpacity * 0.35; // Translucent highlighter
+            } else { // Pen
+                ctx.strokeStyle = strokeColor;
+                ctx.globalAlpha = strokeOpacity;
+            }
+
+            // Quadratic curve smoothing
+            const midPoint = {
+                x: (lastPointerPosition.x + currentPos.x) / 2,
+                y: (lastPointerPosition.y + currentPos.y) / 2
+            };
+
+            ctx.quadraticCurveTo(lastPointerPosition.x, lastPointerPosition.y, midPoint.x, midPoint.y);
+            ctx.stroke();
+
+            lastPointerPosition = currentPos;
+        }
+
+        function handlePointerUp() {
+            if (!isDrawing) return;
+            isDrawing = false;
+            ctx.closePath();
+
+            // Restore HUD visibility
+            document.getElementById('sessionHudTop').classList.remove('hud-dimmed');
+            document.getElementById('sessionHudBottom').classList.remove('hud-dimmed');
+        }
+
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        /* SESSION TIMER & DANGER ENGINE */
+        function startDrawingSession() {
+            autoDimHUD = document.getElementById('autodimToggle').checked;
+            totalSessionSeconds = targetDurationMinutes * 60;
+            sessionTimeRemaining = totalSessionSeconds;
+            
+            strokeCount = 0;
+            totalDistanceDrawn = 0;
+            document.getElementById('strokeCounterText').innerText = '0';
+
+            // Switch Screen Views
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('failureScreen').classList.add('hidden');
+            document.getElementById('victoryScreen').classList.add('hidden');
+            document.getElementById('drawingScreen').classList.remove('hidden');
+
+            setupCanvasSize();
+            fillCanvasBackground();
+
+            lastStrokeTimestamp = Date.now();
+            isSessionActive = true;
+
+            updateSessionTimerDisplay();
+
+            // Intervals
+            sessionTimerInterval = setInterval(tickSessionTimer, 1000);
+            dangerLoopInterval = setInterval(tickDangerLoop, 50); // 20FPS high frequency check
+        }
+
+        function tickSessionTimer() {
+            if (!isSessionActive) return;
+
+            sessionTimeRemaining--;
+            updateSessionTimerDisplay();
+
+            if (sessionTimeRemaining <= 0) {
+                completeSessionVictory();
+            }
+        }
+
+        function tickDangerLoop() {
+            if (!isSessionActive) return;
+
+            const now = Date.now();
+            const elapsedSinceStroke = (now - lastStrokeTimestamp) / 1000;
+            const remainingSafeTime = Math.max(0, gracePeriodSeconds - elapsedSinceStroke);
+
+            const percentLeft = (remainingSafeTime / gracePeriodSeconds) * 100;
+
+            const progressBar = document.getElementById('dangerProgressBar');
+            const dangerOverlay = document.getElementById('dangerOverlay');
+            const countdownText = document.getElementById('dangerCountdownText');
+            const gaugeLabel = document.getElementById('dangerGaugeLabel');
+
+            progressBar.style.width = `${percentLeft}%`;
+            countdownText.innerText = `${remainingSafeTime.toFixed(1)}s`;
+
+            // Canvas Fade Effect on low safe time
+            if (remainingSafeTime < gracePeriodSeconds * 0.6) {
+                // Apply subtle persistent canvas fade to punish slowing down!
+                let bgColor = 'rgba(15, 23, 42, 0.03)';
+                if (canvasTone === 'light') bgColor = 'rgba(255, 255, 255, 0.03)';
+                if (canvasTone === 'charcoal') bgColor = 'rgba(38, 38, 38, 0.03)';
+                if (canvasTone === 'sepia') bgColor = 'rgba(244, 235, 217, 0.03)';
+
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
+            // Visual Alert Vignettes & Sounds
+            if (remainingSafeTime <= 1.5 && remainingSafeTime > 0) {
+                dangerOverlay.className = "fixed inset-0 pointer-events-none z-30 transition-all duration-100 opacity-100 vignette-critical animate-pulse-fast";
+                gaugeLabel.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span> FADING!`;
+                gaugeLabel.className = "text-red-500 font-bold uppercase flex items-center gap-1.5";
+
+                if (Math.floor(elapsedSinceStroke * 10) % 4 === 0) {
+                    playHeartbeatSound();
+                }
+            } else if (remainingSafeTime <= gracePeriodSeconds * 0.5) {
+                dangerOverlay.className = "fixed inset-0 pointer-events-none z-30 transition-all duration-300 opacity-80 vignette-danger";
+                gaugeLabel.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> Danger`;
+                gaugeLabel.className = "text-amber-400 font-bold uppercase flex items-center gap-1.5";
+            } else {
+                dangerOverlay.className = "fixed inset-0 pointer-events-none z-30 transition-all duration-300 opacity-0";
+                gaugeLabel.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Active`;
+                gaugeLabel.className = "text-slate-400 font-bold uppercase flex items-center gap-1.5";
+            }
+
+            // TRIGGER FAILURE STATE
+            if (remainingSafeTime <= 0) {
+                triggerFailureState();
+            }
+        }
+
+        function updateSessionTimerDisplay() {
+            const mins = Math.floor(sessionTimeRemaining / 60);
+            const secs = sessionTimeRemaining % 60;
+            document.getElementById('sessionTimerText').innerText = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        /* FAILURE & VICTORY LOGIC */
+        function triggerFailureState() {
+            stopSessionTimers();
+            playEraseSound();
+
+            // Total wipe out animation on canvas
+            fillCanvasBackground();
+
+            const timeSurvivedSecs = totalSessionSeconds - sessionTimeRemaining;
+            const mins = Math.floor(timeSurvivedSecs / 60);
+            const secs = timeSurvivedSecs % 60;
+            
+            document.getElementById('failedStrokesCount').innerText = strokeCount;
+            document.getElementById('failedTimeSurvived').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            document.getElementById('dangerOverlay').className = "fixed inset-0 pointer-events-none z-30 opacity-0";
+            document.getElementById('drawingScreen').classList.add('hidden');
+            document.getElementById('failureScreen').classList.remove('hidden');
+        }
+
+        function completeSessionVictory() {
+            stopSessionTimers();
+            playVictorySound();
+
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 140, spread: 80, origin: { y: 0.6 } });
+            }
+
+            // Render Preview Image
+            const dataUrl = canvas.toDataURL('image/png');
+            document.getElementById('victoryCanvasPreview').src = dataUrl;
+
+            // Stats
+            const totalTimeMins = targetDurationMinutes;
+            const avgSpeedPxSec = Math.round(totalDistanceDrawn / (totalSessionSeconds || 1));
+
+            document.getElementById('victoryStrokes').innerText = strokeCount;
+            document.getElementById('victorySpeed').innerText = `${avgSpeedPxSec} px/s`;
+            document.getElementById('victoryDuration').innerText = `${totalTimeMins}m`;
+
+            document.getElementById('dangerOverlay').className = "fixed inset-0 pointer-events-none z-30 opacity-0";
+            document.getElementById('drawingScreen').classList.add('hidden');
+            document.getElementById('victoryScreen').classList.remove('hidden');
+        }
+
+        function stopSessionTimers() {
+            isSessionActive = false;
+            clearInterval(sessionTimerInterval);
+            clearInterval(dangerLoopInterval);
+        }
+
+        function restartSession() {
+            startDrawingSession();
+        }
+
+        function confirmAbortSession() {
+            if (confirm("Abandon active sketchbook session? Your artwork will be lost.")) {
+                triggerFailureState();
+            }
+        }
+
+        function goToSetup() {
+            if (isSessionActive && !confirm("Return to setup screen? Active sketch will be lost.")) {
+                return;
+            }
+            stopSessionTimers();
+            document.getElementById('dangerOverlay').className = "fixed inset-0 pointer-events-none z-30 opacity-0";
+            document.getElementById('drawingScreen').classList.add('hidden');
+            document.getElementById('failureScreen').classList.add('hidden');
+            document.getElementById('victoryScreen').classList.add('hidden');
+            document.getElementById('setupScreen').classList.remove('hidden');
+        }
+
+        /* TOOLBAR & CONTROLS */
+        function selectDuration(mins) {
+            targetDurationMinutes = mins;
+            document.querySelectorAll('.duration-btn').forEach(btn => {
+                btn.className = "duration-btn px-3 py-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs sm:text-sm transition";
+            });
+            event.currentTarget.className = "duration-btn px-3 py-2.5 rounded-xl border border-red-500 bg-red-600/20 text-white font-bold text-xs sm:text-sm transition";
+        }
+
+        function selectGracePeriod(secs) {
+            gracePeriodSeconds = secs;
+            document.querySelectorAll('.grace-btn').forEach(btn => {
+                btn.className = "grace-btn px-3 py-2 rounded-xl border border-slate-800 bg-slate-950/60 hover:border-slate-700 text-slate-300 font-semibold text-xs transition";
+            });
+            event.currentTarget.className = "grace-btn px-3 py-2 rounded-xl border border-red-500 bg-red-600/20 text-white font-bold text-xs transition";
+        }
+
+        function updateCanvasToneSetting() {
+            canvasTone = document.getElementById('canvasToneSelect').value;
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.className = "tool-btn p-2.5 rounded-xl hover:bg-slate-900 text-slate-400 transition relative group";
+            });
+            const activeId = tool === 'pen' ? 'toolPen' : tool === 'charcoal' ? 'toolCharcoal' : tool === 'marker' ? 'toolMarker' : 'toolEraser';
+            document.getElementById(activeId).className = "tool-btn p-2.5 rounded-xl bg-slate-800 text-amber-400 border border-slate-700 transition relative group";
+        }
+
+        function updateBrushSettings() {
+            strokeSize = parseInt(document.getElementById('brushSizeInput').value);
+            strokeOpacity = parseInt(document.getElementById('brushOpacityInput').value) / 100;
+            
+            document.getElementById('brushSizeDisplay').innerText = `${strokeSize}px`;
+            document.getElementById('brushOpacityDisplay').innerText = `${Math.round(strokeOpacity * 100)}%`;
+        }
+
+        function renderSwatches() {
+            const container = document.getElementById('swatchContainer');
+            container.innerHTML = '';
+            defaultSwatches.forEach((color, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-6 h-6 rounded-full border border-slate-700/80 transition-all ${idx === 0 ? 'ring-2 ring-amber-400 scale-110' : 'hover:scale-105'}`;
+                btn.style.backgroundColor = color;
+                btn.onclick = () => selectSwatch(color, btn);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectSwatch(color, element) {
+            strokeColor = color;
+            document.querySelectorAll('#swatchContainer button').forEach(b => {
+                b.classList.remove('ring-2', 'ring-amber-400', 'scale-110');
+            });
+            if (element) {
+                element.classList.add('ring-2', 'ring-amber-400', 'scale-110');
+            }
+            if (currentTool === 'eraser') setTool('pen');
+        }
+
+        function selectCustomColor(color) {
+            strokeColor = color;
+            if (currentTool === 'eraser') setTool('pen');
+        }
+
+        /* GLOBAL THEME & AUDIO TOGGLES */
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('soundIcon').className = soundEnabled ? "fa-solid fa-volume-high text-emerald-400" : "fa-solid fa-volume-xmark text-slate-500";
+            document.getElementById('soundText').innerText = soundEnabled ? "Audio: ON" : "Audio: OFF";
+        }
+
+        function cycleTheme() {
+            const body = document.getElementById('appBody');
+            if (currentTheme === 'dark') {
+                currentTheme = 'light';
+                body.className = "theme-light font-sans antialiased h-full w-full relative flex flex-col justify-between overflow-hidden";
+            } else if (currentTheme === 'light') {
+                currentTheme = 'charcoal';
+                body.className = "theme-charcoal font-sans antialiased h-full w-full relative flex flex-col justify-between overflow-hidden";
+            } else {
+                currentTheme = 'dark';
+                body.className = "theme-dark font-sans antialiased h-full w-full relative flex flex-col justify-between overflow-hidden";
+            }
+            document.getElementById('themeText').innerText = `Theme: ${currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1)}`;
+        }
+
+        /* EXPORT UTILITIES */
+        function downloadArtwork() {
+            if (!canvas) return;
+            const link = document.createElement('a');
+            link.download = `Dangerous_Sketch_${new Date().toISOString().slice(0,10)}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            showToast("Artwork downloaded as PNG!");
+        }
+
+        function copyArtworkToClipboard() {
+            if (!canvas) return;
+            try {
+                canvas.toBlob(blob => {
+                    const item = new ClipboardItem({ 'image/png': blob });
+                    navigator.clipboard.write([item]).then(() => {
+                        showToast("Artwork copied to clipboard!");
+                    }).catch(() => {
+                        showToast("Clipboard write not supported in browser context.");
+                    });
+                });
+            } catch (e) {
+                showToast("Failed to copy image.");
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
